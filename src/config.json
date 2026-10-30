@@ -1,0 +1,12 @@
+{
+  "_note": "POC tuning values. tripCostCells is PROVISIONAL (Asekhan: vanilla cost is far too low); final amount is a design decision.",
+  "vanillaTripCostCells": 16,
+  "tripCostCells": 32,
+  "fuelColumnWidthCells": 4,
+  "cooldownMs": 3000,
+  "ringRadiusPx": 130,
+  "deadZonePx": 34,
+  "holdConfirmMs": 220,
+  "minSeparationDeg": 30,
+  "maxSelectDeg": 80
+}
