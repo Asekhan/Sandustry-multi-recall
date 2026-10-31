@@ -29,6 +29,31 @@ const D = Math.PI / 180;
   for (let i = 0; i < out.length; i++) minGap = Math.min(minGap, MRLogic.diff(out[i], out[(i + 1) % out.length]));
   check("layout crowded: all reachable", minGap / D > 22.4, { minGapDeg: minGap / D });
 }
+// layout: different radii may sit closer than minSep, but never under the floor.
+{
+  const same = MRLogic.layout([{ key: "a", angle: 0, radius: 100 }, { key: "b", angle: 2 * D, radius: 100 }], 30 * D, 12 * D, 40);
+  const apart = MRLogic.layout([{ key: "a", angle: 0, radius: 70 }, { key: "b", angle: 2 * D, radius: 150 }], 30 * D, 12 * D, 40);
+  const half = MRLogic.layout([{ key: "a", angle: 0, radius: 100 }, { key: "b", angle: 2 * D, radius: 120 }], 30 * D, 12 * D, 40);
+  const g = (o) => MRLogic.diff(o[0].displayAngle, o[1].displayAngle) / D;
+  check("layout same radius: full separation", Math.abs(g(same) - 30) < 0.01, g(same));
+  check("layout far-apart radii: floor separation", Math.abs(g(apart) - 12) < 0.01, g(apart));
+  check("layout half radius gap: between", Math.abs(g(half) - 21) < 0.01, g(half));
+}
+// layout: three arrows, non-neighbours also respect separation.
+{
+  const out = MRLogic.layout([{ key: "a", angle: 0, radius: 70 }, { key: "b", angle: 1 * D, radius: 150 }, { key: "c", angle: 2 * D, radius: 70 }], 30 * D, 12 * D, 40);
+  check("layout same-radius non-neighbours separated", MRLogic.diff(out[0].displayAngle, out[2].displayAngle) / D > 29.9, out.map((o) => o.displayAngle / D));
+}
+// radius: the ring is a fixed typical trip (1000 cells); gentle log around it, clamped.
+{
+  const r = (d) => MRLogic.radiusFor(d, 1000, 120, 62, 200, 0.25);
+  check("radius at the typical trip = ring", r(1000) === 120);
+  check("radius farther = outside the ring", r(3000) > 150 && r(3000) < 160, r(3000));
+  check("radius nearer = inside the ring", r(300) > 80 && r(300) < 90, r(300));
+  check("radius each x10 adds the same step", Math.abs((r(10000) - r(1000)) - 120 * 0.25 * Math.log(10)) < 1e-9);
+  check("radius clamps near", r(50) === 62);
+  check("radius clamps far", r(100000) === 200);
+}
 // pick: dead zone, nearest, max angle.
 {
   const arrows = [{ key: "right", displayAngle: 0 }, { key: "down", displayAngle: 90 * D }];
@@ -39,13 +64,14 @@ const D = Math.PI / 180;
   check("pick outside max angle", MRLogic.pick([{ key: "right", displayAngle: 0 }], -100, 0, 34, 80 * D) === null);
   check("pick none", MRLogic.pick([], 100, 0, 34, 80 * D) === null);
 }
-// release: quick click stays open, held + arrow confirms, held long on nothing cancels.
+// release: quick click stays open, held + arrow confirms, held on nothing cancels.
 {
-  const cfg = { holdConfirmMs: 220, holdCancelMs: 500 };
-  check("release quick click stays", MRLogic.releaseAction(100, true, cfg) === "stay" && MRLogic.releaseAction(100, false, cfg) === "stay");
-  check("release held on arrow confirms", MRLogic.releaseAction(300, true, cfg) === "confirm");
-  check("release held on nothing, short: stays", MRLogic.releaseAction(400, false, cfg) === "stay");
-  check("release held on nothing, >500 ms: cancels", MRLogic.releaseAction(501, false, cfg) === "cancel");
+  const cfg = { holdConfirmMs: 200, holdCancelMs: 200 };
+  check("release quick click stays", MRLogic.releaseAction(150, true, cfg) === "stay" && MRLogic.releaseAction(150, false, cfg) === "stay");
+  check("release held on arrow confirms", MRLogic.releaseAction(250, true, cfg) === "confirm");
+  check("release held on nothing, 200 ms: cancels", MRLogic.releaseAction(200, false, cfg) === "cancel");
+  const split = { holdConfirmMs: 200, holdCancelMs: 500 };
+  check("release with a later cancel threshold stays in between", MRLogic.releaseAction(400, false, split) === "stay" && MRLogic.releaseAction(501, false, split) === "cancel");
 }
 // cap: base until researched, then the highest researched tier.
 {
@@ -60,7 +86,9 @@ const D = Math.PI / 180;
   check("fuel vanilla tile", v.length === 16 && Math.min(...v.map((p) => p.y)) === 196 && Math.max(...v.map((p) => p.y)) === 199 && Math.min(...v.map((p) => p.x)) === 100 && Math.max(...v.map((p) => p.x)) === 103);
   check("fuel 32 = two tiles", c.length === 32 && Math.min(...c.map((p) => p.y)) === 192);
   const q = MRLogic.fuelCells(100, 200, 64, 4);
-  check("fuel 64 (default, 4x vanilla) = four tiles", q.length === 64 && Math.min(...q.map((p) => p.y)) === 184);
+  check("fuel 64 = four tiles", q.length === 64 && Math.min(...q.map((p) => p.y)) === 184);
+  const d = MRLogic.fuelCells(100, 200, 48, 4);
+  check("fuel 48 (default, 3x vanilla) = three tiles", d.length === 48 && Math.min(...d.map((p) => p.y)) === 188);
   check("fuel bottom row first", c[0].y === 199);
 }
 return { passed: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok) , total: results.length };
