@@ -7,20 +7,20 @@ import json
 import pathlib
 import sys
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 MANIFEST = {
     "manifestVersion": 1,
-    "id": "asekhan.recallnetwork",
-    "name": "Recall Network (POC)",
+    "id": "asekhan.multirecall",
+    "name": "Multi-Recall",
     "version": VERSION,
     "apiVersion": 1,
     "gameVersion": {"minimum": "0.6.0"},
     "entry": "main.js",
     "author": "Asekhan",
-    "description": "Proof of concept. Place several recall portals and pick a destination from a radial picker "
-    "around the Recall Shard. Flat Voidbloom cost per trip.",
+    "description": "Place several recall portals (2, 5, then 10 with research) and choose where to recall from a radial picker. "
+    "Right-click with the Recall Shard to place a portal. Each trip burns Voidbloom stacked above the destination portal.",
     "dependencies": [],
     "loadOrder": 1200,
 }

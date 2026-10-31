@@ -1,12 +1,23 @@
 {
-  "_note": "POC tuning values. tripCostCells is PROVISIONAL (Asekhan: vanilla cost is far too low); final amount is a design decision.",
+  "_note": "Tuning. Prices are in Voidbloom cells (vanilla: 16 per trip, the 4x4 tile above the portal). Tech costs use the vanilla research currency (vanilla Recall: 4,000; the dearest vanilla tech: 10,000).",
   "vanillaTripCostCells": 16,
-  "tripCostCells": 32,
+  "tripCostCells": 64,
   "fuelColumnWidthCells": 4,
+  "baseMaxPortals": 1,
+  "techs": [
+    { "id": "multiRecall2", "maxPortals": 2, "cost": 15000 },
+    { "id": "multiRecall5", "maxPortals": 5, "cost": 40000 },
+    { "id": "multiRecall10", "maxPortals": 10, "cost": 100000 }
+  ],
+  "parentTech": "Recall",
   "cooldownMs": 3000,
   "ringRadiusPx": 130,
   "deadZonePx": 34,
   "holdConfirmMs": 220,
+  "holdCancelMs": 500,
   "minSeparationDeg": 30,
-  "maxSelectDeg": 80
+  "maxSelectDeg": 35,
+  "hideCurrentPortalCells": 6,
+  "openAnimMs": 140,
+  "closeAnimMs": 110
 }

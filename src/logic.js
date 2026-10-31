@@ -1,5 +1,5 @@
 // Pure picker logic: no game state, no DOM. Angles are radians, y grows downward (screen and world agree).
-const RNLogic = (() => {
+const MRLogic = (() => {
   const TAU = Math.PI * 2;
   const norm = (a) => ((a % TAU) + TAU) % TAU;
   const diff = (a, b) => { const d = Math.abs(norm(a) - norm(b)); return d > Math.PI ? TAU - d : d; };
@@ -38,12 +38,22 @@ const RNLogic = (() => {
     return best && bestD <= maxSel ? best.key : null;
   }
 
-  // Stable short labels: A..Z, AA.. Never reused, so a label always names the same portal.
-  function labelFor(index) {
-    let s = "", n = index;
-    do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
-    return s;
+  // What releasing the button does, given how long it was held and whether an arrow is highlighted.
+  // A quick click leaves the picker open; a held press confirms the highlighted arrow, or cancels after holdCancelMs.
+  function releaseAction(heldMs, hasHover, cfg) {
+    if (heldMs < cfg.holdConfirmMs) return "stay";
+    if (hasHover) return "confirm";
+    return heldMs > cfg.holdCancelMs ? "cancel" : "stay";
   }
+
+  // Portal cap from researched techs: the highest unlocked maxPortals, or the base.
+  function maxPortals(cfg, isResearched) {
+    let max = cfg.baseMaxPortals;
+    for (const t of cfg.techs) if (isResearched(t.id)) max = Math.max(max, t.maxPortals);
+    return max;
+  }
+
+  const easeOut = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 
   // Cells of the fuel column directly above a portal's base (x, y = portal top-left cell), bottom row first.
   function fuelCells(x, y, costCells, width) {
@@ -52,5 +62,5 @@ const RNLogic = (() => {
     return cells.slice(0, costCells);
   }
 
-  return { TAU, norm, diff, layout, pick, labelFor, fuelCells };
+  return { TAU, norm, diff, layout, pick, releaseAction, maxPortals, easeOut, fuelCells };
 })();
