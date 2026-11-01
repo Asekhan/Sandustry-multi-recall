@@ -29,22 +29,7 @@ Pause menu or main menu > Options > Mods > Multi-Recall. Changes apply at once, 
 
 ## Configuration (build time)
 
-`src/config.json`, then rebuild. The options above take their defaults from here.
-
-| Key | Default | Meaning |
-|---|---|---|
-| `tripCostMultiplier` | 3 | Default trip cost, × vanilla's 16 cells |
-| `baseMaxPortals` | 1 | Cap before any research |
-| `techs` | 2 / 5 / 10 at 15k / 40k / 100k | Research nodes: `id`, `maxPortals`, default `cost` |
-| `parentUnlocksItem` | `recallDevice` | The chain hangs from the vanilla tech that unlocks this item (`parentTech`, an `enums.Tech` name, is the fallback) |
-| `cooldownMs` | 3000 | Time between trips (vanilla shard cooldown) |
-| `hideNearCells` | 25 | Portals closer than this aren't offered |
-| `ringDistanceCells`, `ringPx` | 1000, 120 | The ring is drawn at `ringPx` and stands for this distance |
-| `radiusLogGain`, `arrowMinPx`, `arrowMaxPx` | 0.25, 62, 200 | Arrow radius = `ringPx × (1 + gain × ln(distance / ringDistanceCells))`, clamped |
-| `minSeparationDeg`, `minSeparationFloorDeg`, `separationRadialPx` | 20, 8, 40 | Arrows on the same radius stay 20° apart; arrows 40 px or more apart in radius may come down to 8° |
-| `holdConfirmMs` / `holdCancelMs` | 200 / 200 | Hold at least this long to confirm on release / to cancel on release when pointing at nothing |
-| `maxSelectDeg`, `deadZonePx` | 35, 34 | Picker selection |
-| `openAnimMs` / `closeAnimMs` | 140 / 110 | Ring animation |
+Every number lives in `src/config.json`: portal caps, research nodes and their default costs, the parent tech, cooldown, and the picker's geometry and timings. The in-game options take their defaults from it. Rebuild after editing.
 
 ## Build and install
 
@@ -52,7 +37,7 @@ Pause menu or main menu > Options > Mods > Multi-Recall. Changes apply at once, 
 python -I tools/build.py
 ```
 
-Copy `mod/` to `%APPDATA%\sandustry\mods\asekhan.multirecall\` and restart the game. The logic tests run in the game's own JS engine, through the Sandustry MCP bridge, with the game running:
+Copy `mod/` to `%APPDATA%\sandustry\mods\asekhan.multirecall\` and restart the game. The Steam title and description are `name` and `description` in `tools/build.py` (plain text; the game's uploader sends them, and they show in the in-game mod list). The logic tests run in the game's own JS engine, through the Sandustry MCP bridge, with the game running:
 
 ```bash
 python -I tools/run_tests.py

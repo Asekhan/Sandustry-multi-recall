@@ -19,8 +19,14 @@ MANIFEST = {
     "gameVersion": {"minimum": "0.6.0"},
     "entry": "main.js",
     "author": "Asekhan",
-    "description": "Place several recall portals (2, 5, then 10 with research) and choose where to recall from a radial picker. "
-    "Right-click with the Recall Shard to place a portal. Each trip burns Voidbloom stacked above the destination portal.",
+    "description": "\n".join([
+        "Keep several recall portals and pick where the Recall Shard takes you.",
+        "",
+        "- Right-click with the Recall Shard to place a portal. Left-click opens a ring of arrows, one per portal, with its distance.",
+        "- Research Recall Network I / II / III for 2, 5, then 10 portals.",
+        "- A trip burns the Voidbloom stacked above the destination portal: 48 cells by default (3x vanilla).",
+        "- Trip and research costs: Options > Mods > Multi-Recall.",
+    ]),
     "dependencies": [],
     "loadOrder": 1200,
 }
