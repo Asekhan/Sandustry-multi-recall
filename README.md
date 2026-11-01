@@ -1,55 +1,37 @@
-# Multi-Recall (`asekhan.multirecall`)
+# Multi-Recall
 
 A Sandustry mod: keep several recall portals and choose where the Recall Shard takes you.
-
-Tested on Steam 0.6.0 (Sandkit `apiVersion` 1).
+Sandustry 0.6.0.
 
 ## Use
 
-- **Place portals:** hold the Recall Shard and **right-click**. A small line above the hotbar shows how many portals you have and the cap. With no portal at all, a left click places the first one, as in vanilla.
-- **Recall:** left-click opens a ring of arrows around you, one per portal, pointing where it is (off-screen ones included), with the distance in cells. Portals closer than 25 cells aren't listed (you'd walk).
-  - The ring stands for a typical trip of about 1,000 cells. Nearer portals' arrows sit inside it, farther ones outside, on a gentle log scale.
-  - Quick click to open, then click an arrow.
-  - Or press, point at an arrow, release (hold at least 200 ms).
-  - A held release always closes the ring: a trip, or a refusal message if that portal can't take you.
-  - Cancel: hold 200 ms or more without pointing at anything and release, click the centre, right-click, or Escape.
-- **Fuel:** Voidbloom stacked in the 4-wide column directly above the destination portal's base, as in vanilla. A trip costs **48 cells** by default (3× vanilla's 16), so the column is 12 cells tall and needs walls. Portals that are short of fuel or blocked stay on the ring, dimmed, with the distance and what's missing ("181 cells (16/48)", "(blocked)").
-- **Research** (alien branch, after the vanilla tech that unlocks the shard): Recall Network I / II / III raise the cap to **2 / 5 / 10** portals. They cost 15,000 / 40,000 / 100,000. Without them you get the vanilla single portal.
+- **Place a portal:** hold the Recall Shard and right-click. The line above the hotbar shows your portal count and cap.
+- **Recall:** left-click opens a ring of arrows around you, one per portal, with its distance in cells. Click an arrow, or press, point and release. Right-click, Escape or the centre cancels. Portals closer than 25 cells aren't offered.
+- **Fuel:** Voidbloom stacked above the destination portal, as in vanilla. A trip costs 48 cells by default (3× vanilla). Portals short of fuel or blocked show dimmed, with what's missing.
+- **Research:** Recall Network I / II / III (alien branch, after the Recall Shard) raise the cap to 2 / 5 / 10 portals. Without them you keep the vanilla single portal. Portals over the cap are never removed; you just can't place more.
 
-Portals you already have are never removed if you're over the cap; you just can't place more. Portals can't be copied or picked (vanilla flags), so copy/paste can't get around the cap.
+## Options
 
-## Options (in game)
-
-Pause menu or main menu > Options > Mods > Multi-Recall. Changes apply at once, research prices included.
+Options > Mods > Multi-Recall. Changes apply at once.
 
 | Option | Default | Range |
 |---|---|---|
-| Trip cost (× vanilla) | 3 (48 cells) | 0 to 10, steps of 0.25; 0 = free |
-| Recall Network I / II / III research cost (thousands) | 15 / 40 / 100 | 1 to 500 |
+| Trip cost (× vanilla) | 3 (48 cells) | 0 to 10; 0 = free |
+| Recall Network I / II / III cost (thousands) | 15 / 40 / 100 | 1 to 500 |
 
-## Configuration (build time)
-
-Every number lives in `src/config.json`: portal caps, research nodes and their default costs, the parent tech, cooldown, and the picker's geometry and timings. The in-game options take their defaults from it. Rebuild after editing.
-
-## Build and install
+## Build
 
 ```bash
 python -I tools/build.py
 ```
 
-Copy `mod/` to `%APPDATA%\sandustry\mods\asekhan.multirecall\` and restart the game. The Steam title and description are `name` and `description` in `tools/build.py` (plain text; the game's uploader sends them, and they show in the in-game mod list). The logic tests run in the game's own JS engine, through the Sandustry MCP bridge, with the game running:
-
-```bash
-python -I tools/run_tests.py
-```
+Copy `mod/` to `%APPDATA%\sandustry\mods\asekhan.multirecall\` and restart the game. Every number lives in `src/config.json`; the in-game options take their defaults from it. The logic tests run in the game's own JS engine through the [Sandustry MCP bridge](https://github.com/Asekhan/Sandustry-mcp-bridge), with the game running: `python -I tools/run_tests.py`.
 
 ## How it works
 
-- `items.updateDefinition("recallDevice", { handleAction, afterRender })` takes over the vanilla shard with no bundle patch. `handleAction` runs every frame while the shard is held, with the left button's click/hold/release state.
-- Right-click and Escape are captured on `window` (capture phase), and only while the shard is held over the game canvas, so the pause menu and other tools don't see them.
-- Portals are vanilla `homeBeacon` structures, read fresh from the world every frame the picker is open, so placing, removing and reloading can't leave stale entries. A portal placed over the cap by any other route is removed on `building:placed`.
-- Research nodes come from `tech.registerNode`. The parent is found by scanning `enums.Tech` for the definition whose `unlocks.items` contains `recallDevice` (85 on 0.6.0). Option changes reprice them with `tech.updateDefinition`.
-- Options are a `configSchema` in `modinfo.json` (written by `tools/build.py`), read with `api.settings.get` and watched with `api.settings.onChange`.
+- `items.updateDefinition("recallDevice", { handleAction, afterRender })` takes over the vanilla shard without a bundle patch.
+- Portals are vanilla `homeBeacon` structures, read from the world each frame the ring is open. A portal placed over the cap by another route is removed on `building:placed`.
+- Research nodes come from `tech.registerNode`, under the tech that unlocks `recallDevice`; option changes reprice them with `tech.updateDefinition`.
 
 ## License
 
