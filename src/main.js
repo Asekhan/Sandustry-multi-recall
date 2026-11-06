@@ -54,6 +54,14 @@ function findParentTech() {
   try { return { id, def: api.tech.getDefinitionById(id) || {} }; } catch (_) { return null; }
 }
 
+// Node icon: the shard's own icon, as vanilla upgrade chains repeat their item's. Recall itself gets its icon from what it
+// unlocks, and our nodes unlock nothing, so without this the tree draws placeholder initials ("RN").
+function shardIcon() {
+  let name = null;
+  try { const d = api.items.getDefinitionById(SHARD); name = d && d.sprite && d.sprite.ui && d.sprite.ui.imageName; } catch (_) {}
+  return { spriteName: name || "recall_shard_icon" };
+}
+
 let techsRegistered = false;
 function registerTechs() {
   if (techsRegistered) return;
@@ -69,8 +77,8 @@ function registerTechs() {
       branch: base.branch || "alien",
       requires: [parent],
       unlocks: {},
+      icon: base.icon || shardIcon(),
     };
-    if (base.icon) def.icon = base.icon;
     if (base.sprite) def.sprite = base.sprite;
     try { api.tech.registerNode(tech.id, def, { parentId: parent }); }
     catch (e) { if (!/already/i.test(String(e && e.message))) { ok = false; log("tech " + tech.id + " not registered: " + e); } }
@@ -201,23 +209,37 @@ function refreshArrows() {
 }
 
 // ---- placement: right-click with the shard, within the researched cap ----
+// placing: we switched the hotbar to the portal for this placement. A second right-click or Escape gives the shard back.
+let placing = false;
+const placingPortal = () => { const a = player().action; return placing && !!a && a.type === ActionType.Building && a.id === PORTAL; };
 function startPlacement() {
   const max = maxPortals();
   if (portals().length >= max) { counters.placementsBlocked++; toast("mods|multiRecall|limit", { max }); return; }
   api.ui.hotbar.selectAction({ type: ActionType.Building, id: PORTAL });
+  placing = true;
+}
+function cancelPlacement() {
+  placing = false;
+  api.ui.hotbar.selectAction({ type: ActionType.Mod, id: SHARD });
+  log("placement cancelled");
 }
 
-// ---- input the game would otherwise act on: Escape while picking, right-click while holding the shard ----
+// ---- input the game would otherwise act on: Escape while picking or placing, right-click with the shard or while placing ----
 window.addEventListener("keydown", (e) => {
-  if (!isOpen() || e.key !== "Escape") return;
+  if (e.key !== "Escape" || !(isOpen() || placingPortal())) return;
   e.preventDefault(); e.stopImmediatePropagation();
-  closePicker("cancel");
+  if (isOpen()) closePicker("cancel"); else cancelPlacement();
 }, true);
 const onRightButton = (e) => {
-  if (e.button !== 2 || !api.items.isActiveById(SHARD) || !e.target || e.target.tagName !== "CANVAS") return;
+  if (e.button !== 2 || !e.target || e.target.tagName !== "CANVAS") return;
+  const shard = api.items.isActiveById(SHARD);
+  if (!shard && !placingPortal()) return;
+  // Every event of the click is swallowed, so the rest of the click that started placement doesn't also cancel it.
   e.preventDefault(); e.stopImmediatePropagation();
   if (e.type !== "pointerdown") return;
-  if (isOpen()) closePicker("cancel"); else startPlacement();
+  if (!shard) cancelPlacement();
+  else if (isOpen()) closePicker("cancel");
+  else startPlacement();
 };
 for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "contextmenu"]) window.addEventListener(type, onRightButton, true);
 
@@ -347,10 +369,11 @@ function install() {
 try { registerTechs(); } catch (e) { log("tech registration failed at load: " + (e && e.stack || e)); }
 try { api.settings.onChange(() => { applyTechCosts(); log("options changed: trip cost " + tripCost() + ", research " + CONFIG.techs.map(techCost).join("/")); }); } catch (e) { log("settings watch failed: " + e); }
 api.events.on("game:ready", () => { picker = null; registerTechs(); install(); store(); syncHint(); });
-api.events.on("action:changed", syncHint);
+api.events.on("action:changed", () => { if (!placingPortal()) placing = false; syncHint(); });
 api.events.on("tech:unlocked", syncHint);
 api.events.on("building:placed", (ev) => {
   if (!ev || !ev.structure || ev.structure.type !== PORTAL) return;
+  placing = false; // vanilla hands the shard back after a portal is placed
   // Safety net for any placement path that skipped our cap check: undo the extra portal.
   const max = maxPortals();
   if (portals().length > max) { api.structures.removeAtCell(ev.x, ev.y); counters.placementsBlocked++; toast("mods|multiRecall|limit", { max }); log("removed portal over cap at " + ev.x + "," + ev.y); }

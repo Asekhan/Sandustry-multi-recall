@@ -5,7 +5,7 @@ Sandustry 0.6.0.
 
 ## Use
 
-- **Place a portal:** hold the Recall Shard and right-click. The line above the hotbar shows your portal count and cap.
+- **Place a portal:** hold the Recall Shard and right-click. The line above the hotbar shows your portal count and cap. Right-click again or press Escape to put the portal away without placing it.
 - **Recall:** left-click opens a ring of arrows around you, one per portal, with its distance in cells. Click an arrow, or press, point and release. Right-click, Escape or the centre cancels. Portals closer than 25 cells aren't offered.
 - **Fuel:** Voidbloom stacked above the destination portal, as in vanilla. A trip costs 48 cells by default (3× vanilla). Portals short of fuel or blocked show dimmed, with what's missing.
 - **Research:** Recall Network I / II / III (alien branch, after the Recall Shard) raise the cap to 2 / 5 / 10 portals. Without them you keep the vanilla single portal. Portals over the cap are never removed; you just can't place more.

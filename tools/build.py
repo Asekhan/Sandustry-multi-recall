@@ -7,7 +7,7 @@ import json
 import pathlib
 import sys
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 MANIFEST = {
@@ -23,7 +23,7 @@ MANIFEST = {
         "Keep up to 10 recall portals and pick where the Recall Shard takes you.",
         "",
         "How to use:",
-        "1. Hold the Recall Shard and right-click to place a portal.",
+        "1. Hold the Recall Shard and right-click to place a portal (right-click again or Escape to cancel).",
         "2. Left-click: a ring of arrows points to every portal, with its distance.",
         "3. Click an arrow to recall there.",
         "",
