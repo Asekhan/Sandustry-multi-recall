@@ -7,7 +7,7 @@ import json
 import pathlib
 import sys
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 MANIFEST = {

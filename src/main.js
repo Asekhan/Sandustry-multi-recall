@@ -9,6 +9,21 @@ const HOTBAR_OVERLAYS = sandkit.enums.ComponentId.HotbarOverlays;
 const DEG = Math.PI / 180;
 
 const log = (msg) => { try { window.electron.log("info", "multi-recall", msg); } catch (_) {} };
+
+// Vanilla guard: the build ruler fades its dashed lines with gradient stops at (cursor ± fade) / canvas size,
+// clamping only one side of each. Right after a recall the cursor's cell can sit far off screen (seen near a very
+// tall launcher), a stop lands above 1, addColorStop throws IndexSizeError and the frame's overlay breaks.
+// Clamp finite offsets into [0, 1], which is what the ruler meant. Shared flag so other mods don't wrap it twice.
+(function guardColorStops() {
+  const G = typeof CanvasGradient !== "undefined" && CanvasGradient.prototype;
+  if (!G || G.addColorStop.__clamped) return;
+  const original = G.addColorStop;
+  const clamped = function (offset, color) {
+    return original.call(this, Number.isFinite(offset) ? Math.min(1, Math.max(0, offset)) : offset, color);
+  };
+  clamped.__clamped = true;
+  G.addColorStop = clamped;
+})();
 const counters = { trips: 0, refused: 0, cancelled: 0, fuelSpent: 0, opened: 0, placementsBlocked: 0 };
 
 api.i18n.register("en", {
