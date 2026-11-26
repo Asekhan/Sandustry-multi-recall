@@ -7,7 +7,7 @@ import json
 import pathlib
 import sys
 
-VERSION = "0.3.2"
+VERSION = "0.4.0"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 MANIFEST = {
@@ -29,7 +29,7 @@ MANIFEST = {
         "",
         "- Research Recall Network I, II and III for 2, 5, then 10 portals.",
         "- A trip burns the Voidbloom stacked above the destination portal (48 cells by default).",
-        "- Trip and research costs: Options > Mods > Multi-Recall.",
+        "- Options > Mods > Multi-Recall: trip cost, and Require research (off: 10 portals from the start).",
     ]),
     "dependencies": [],
     "loadOrder": 1200,
@@ -39,16 +39,16 @@ MANIFEST = {
 def config_schema(config):
     """Player options (Options > Mods). Defaults come from config.json; main.js falls back to them too."""
     key = "mods|multiRecall|settings|"
-    schema = {"tripCostMultiplier": {
-        "type": "number", "default": config["tripCostMultiplier"], "min": 0, "max": 10, "step": 0.25,
-        "labelKey": key + "tripCostMultiplier", "descriptionKey": key + "tripCostMultiplierDescription",
-    }}
-    for tech in config["techs"]:
-        schema[tech["id"] + "CostK"] = {
-            "type": "number", "default": tech["cost"] // 1000, "min": 1, "max": 500, "step": 1,
-            "labelKey": key + tech["id"] + "CostK", "descriptionKey": key + tech["id"] + "CostKDescription",
-        }
-    return schema
+    return {
+        "tripCostMultiplier": {
+            "type": "number", "default": config["tripCostMultiplier"], "min": 0, "max": 10, "step": 0.25,
+            "labelKey": key + "tripCostMultiplier", "descriptionKey": key + "tripCostMultiplierDescription",
+        },
+        "requireResearch": {
+            "type": "boolean", "default": True,
+            "labelKey": key + "requireResearch", "descriptionKey": key + "requireResearchDescription",
+        },
+    }
 
 
 def build():
@@ -61,7 +61,10 @@ def build():
         (SRC / "logic.js").read_text(encoding="utf-8"),
         (SRC / "main.js").read_text(encoding="utf-8"),
     ])
-    return {"main.js": bundle, "modinfo.json": json.dumps(manifest, indent=2) + "\n"}
+    out = {"main.js": bundle, "modinfo.json": json.dumps(manifest, indent=2) + "\n"}
+    for png in sorted((SRC / "sprites").glob("*.png")):  # research node icons (tools/make_icons.py)
+        out["sprites/" + png.name] = png.read_bytes()
+    return out
 
 
 def main():
@@ -69,13 +72,17 @@ def main():
     if "--check" in sys.argv:
         for name, content in out.items():
             p = mod / name
-            if not p.exists() or p.read_text(encoding="utf-8") != content:
+            if not p.exists() or (p.read_bytes() if isinstance(content, bytes) else p.read_text(encoding="utf-8")) != content:
                 sys.exit(f"mod/{name} is stale: run python -I tools/build.py")
         print("mod/ is current")
         return
     mod.mkdir(exist_ok=True)
     for name, content in out.items():
-        (mod / name).write_text(content, encoding="utf-8", newline="\n")
+        (mod / name).parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(content, bytes):
+            (mod / name).write_bytes(content)
+        else:
+            (mod / name).write_text(content, encoding="utf-8", newline="\n")
     print(f"Built mod/ ({len(out['main.js']) // 1024} KB main.js), version {VERSION}")
 
 

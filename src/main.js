@@ -39,9 +39,11 @@ api.i18n.register("en", {
 api.i18n.register("en", Object.fromEntries(CONFIG.techs.flatMap((tech, i) => [
   ["tech|" + tech.id + "|name", "Recall Network " + ["I", "II", "III", "IV", "V"][i]],
   ["tech|" + tech.id + "|description", "Keep up to " + tech.maxPortals + " recall portals. Right-click with the Recall Shard to place one; click to choose where to go."],
-  ["mods|multiRecall|settings|" + tech.id + "CostK", "Recall Network " + ["I", "II", "III", "IV", "V"][i] + " research cost (thousands)"],
-  ["mods|multiRecall|settings|" + tech.id + "CostKDescription", "Research cost of the tech that allows " + tech.maxPortals + " portals, in thousands. Default " + tech.cost / 1000 + " = " + tech.cost.toLocaleString("en") + "."],
 ])));
+api.i18n.register("en", {
+  "mods|multiRecall|settings|requireResearch": "Require research",
+  "mods|multiRecall|settings|requireResearchDescription": "On: research Recall Network I, II and III for 2, 5 and 10 portals. Off: " + CONFIG.techs[CONFIG.techs.length - 1].maxPortals + " portals from the start, and the research nodes are hidden.",
+});
 const t = (key, params) => api.i18n.t("mods|multiRecall|" + key, params);
 const toast = (key, params) => api.ui.toast({ key, params });
 
@@ -49,9 +51,11 @@ const toast = (key, params) => api.ui.toast({ key, params });
 function setting(key, fallback, min) {
   try { const v = Number(api.settings.get(key)); return Number.isFinite(v) && v >= min ? v : fallback; } catch (_) { return fallback; }
 }
-// Trip: a multiple of the vanilla 16 cells (0 = free). Research: whole thousands.
+// Trip: a multiple of the vanilla 16 cells (0 = free).
 const tripCost = () => Math.round(CONFIG.vanillaTripCostCells * setting("tripCostMultiplier", CONFIG.tripCostMultiplier, 0));
-const techCost = (tech) => Math.round(setting(tech.id + "CostK", tech.cost / 1000, 1)) * 1000;
+const techCost = (tech) => tech.cost;
+// Off: the full cap without research (and the nodes hidden).
+const requireResearch = () => { try { const v = api.settings.get("requireResearch"); return v === undefined || v === null ? true : v !== false && v !== "false"; } catch (_) { return true; } };
 
 // ---- research: three nodes after the vanilla tech that unlocks the shard ----
 // Found by what it unlocks rather than by id; the config's enum name is only a fallback.
@@ -69,13 +73,26 @@ function findParentTech() {
   try { return { id, def: api.tech.getDefinitionById(id) || {} }; } catch (_) { return null; }
 }
 
-// Node icon: the shard's own icon, as vanilla upgrade chains repeat their item's. Recall itself gets its icon from what it
-// unlocks, and our nodes unlock nothing, so without this the tree draws placeholder initials ("RN").
+// Node icon: the shard's own icon with the portal cap on it (2, 5, 10), from mod/sprites (tools/make_icons.py). Recall
+// itself gets its icon from what it unlocks; ours unlock nothing, so without an icon the tree draws initials ("RN").
+const ICON_ID = (tech) => "asekhan.multirecall:net" + tech.maxPortals;
+let iconsLoaded = false;
+function loadIcons() {
+  return Promise.all(CONFIG.techs.map((tech) => api.sprites.loadFromMod(ICON_ID(tech), "sprites/net" + tech.maxPortals + ".png")))
+    .then(() => { iconsLoaded = true; }, (e) => log("node icons not loaded: " + e));
+}
+const iconsReady = loadIcons();
 function shardIcon() {
   let name = null;
   try { const d = api.items.getDefinitionById(SHARD); name = d && d.sprite && d.sprite.ui && d.sprite.ui.imageName; } catch (_) {}
   return { spriteName: name || "recall_shard_icon" };
 }
+const nodeIcon = (tech) => iconsLoaded ? { spriteName: ICON_ID(tech) } : shardIcon();
+// Grid spot for each node, as [rows, cols] from the parent tech. Straight down, the third node sat on the Aura
+// circle's total (a player's report), so the chain turns left after two.
+const NODE_OFFSETS = [[1, 0], [2, 0], [2, -1]];
+let gridPos = () => null;
+try { const eng = sandkit.engine && sandkit.engine.api && sandkit.engine.api.tech; if (eng && eng.getGridPosition) gridPos = (id) => eng.getGridPosition(id); } catch (_) {}
 
 let techsRegistered = false;
 function registerTechs() {
@@ -84,7 +101,8 @@ function registerTechs() {
   if (!found) { log("no tech unlocks " + CONFIG.parentUnlocksItem + " yet; retrying at game:ready"); return; }
   const base = found.def || {};
   let parent = found.id, ok = true;
-  for (const tech of CONFIG.techs) {
+  const origin = gridPos(found.id);
+  for (const [i, tech] of CONFIG.techs.entries()) {
     const def = {
       nameKey: "tech|" + tech.id + "|name",
       descriptionKey: "tech|" + tech.id + "|description",
@@ -92,23 +110,37 @@ function registerTechs() {
       branch: base.branch || "alien",
       requires: [parent],
       unlocks: {},
-      icon: base.icon || shardIcon(),
+      icon: nodeIcon(tech),
     };
     if (base.sprite) def.sprite = base.sprite;
-    try { api.tech.registerNode(tech.id, def, { parentId: parent }); }
-    catch (e) { if (!/already/i.test(String(e && e.message))) { ok = false; log("tech " + tech.id + " not registered: " + e); } }
+    const off = NODE_OFFSETS[i], opts = { parentId: parent };
+    if (origin && off) opts.preferredPosition = { row: origin.row + off[0], col: origin.col + off[1] };
+    const reg = (o) => api.tech.registerNode(tech.id, def, o);
+    const already = (e) => /already/i.test(String(e && e.message));
+    try { reg(opts); }
+    catch (e) {
+      if (already(e)) { /* registered on an earlier load */ }
+      else if (opts.preferredPosition) {
+        // the spot is taken (another mod, a game update): let the game place it
+        try { reg({ parentId: parent }); log("tech " + tech.id + ": preferred spot taken, placed by the game"); }
+        catch (e2) { if (!already(e2)) { ok = false; log("tech " + tech.id + " not registered: " + e2); } }
+      } else { ok = false; log("tech " + tech.id + " not registered: " + e); }
+    }
     parent = tech.id;
   }
   techsRegistered = ok;
   if (ok) log("research registered after tech " + found.id);
 }
-// Cost options changed in game: reprice the nodes in place.
-function applyTechCosts() {
+// Icons arrive after registration (async load): swap them in. Require research changed: show or hide the nodes.
+function applyTechs() {
+  const hidden = !requireResearch();
   for (const tech of CONFIG.techs) {
-    try { api.tech.updateDefinition(tech.id, { cost: techCost(tech) }); } catch (e) { log("tech " + tech.id + " cost not updated: " + e); }
+    try { api.tech.updateDefinition(tech.id, { icon: nodeIcon(tech) }); } catch (e) { log("tech " + tech.id + " icon not updated: " + e); }
+    try { const eng = sandkit.engine.api.tech; if (eng.setHidden) eng.setHidden(sandkit.state, tech.id, hidden); } catch (_) {}
   }
 }
-const maxPortals = () => MRLogic.maxPortals(CONFIG, (id) => api.tech.isResearchedById(id));
+iconsReady.then(() => { try { applyTechs(); } catch (_) {} });
+const maxPortals = () => requireResearch() ? MRLogic.maxPortals(CONFIG, (id) => api.tech.isResearchedById(id)) : Math.max(...CONFIG.techs.map((t) => t.maxPortals));
 
 // ---- per-world storage ----
 function store() {
@@ -382,8 +414,8 @@ function install() {
   log("installed v" + VERSION + ", trip cost " + tripCost() + " (vanilla " + CONFIG.vanillaTripCostCells + "), cap " + maxPortals());
 }
 try { registerTechs(); } catch (e) { log("tech registration failed at load: " + (e && e.stack || e)); }
-try { api.settings.onChange(() => { applyTechCosts(); log("options changed: trip cost " + tripCost() + ", research " + CONFIG.techs.map(techCost).join("/")); }); } catch (e) { log("settings watch failed: " + e); }
-api.events.on("game:ready", () => { picker = null; registerTechs(); install(); store(); syncHint(); });
+try { api.settings.onChange(() => { applyTechs(); syncHint(); log("options changed: trip cost " + tripCost() + ", require research " + requireResearch()); }); } catch (e) { log("settings watch failed: " + e); }
+api.events.on("game:ready", () => { picker = null; registerTechs(); applyTechs(); install(); store(); syncHint(); });
 api.events.on("action:changed", () => { if (!placingPortal()) placing = false; syncHint(); });
 api.events.on("tech:unlocked", syncHint);
 api.events.on("building:placed", (ev) => {
